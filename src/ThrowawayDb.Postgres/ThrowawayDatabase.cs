@@ -77,18 +77,27 @@ namespace ThrowawayDb.Postgres
             return (builder.ConnectionString, databaseName);
         }
 
+        /// <summary>
+        /// Creates a throwaway database.
+        /// </summary>
         public static ThrowawayDatabase Create(string username, string password, string host, int port, string databaseNamePrefix = null)
         {
             var connectionString = $"Host={host}; Port={port}; Username={username}; Password={password}; Database=postgres";
             return Create(connectionString, databaseNamePrefix);
         }
 
+        /// <summary>
+        /// Creates a throwaway database.
+        /// </summary>
         public static ThrowawayDatabase Create(string username, string password, string host, string databaseNamePrefix = null)
         {
             var connectionString = $"Host={host}; Port={DefaultDatabasePort}; Username={username}; Password={password}; Database=postgres";
             return Create(connectionString, databaseNamePrefix);
         }
 
+        /// <summary>
+        /// Creates a throwaway database using the connection string provided.
+        /// </summary>
         public static ThrowawayDatabase Create(string connectionString, string databaseNamePrefix = null)
         {
             if (!TryPingDatabase(connectionString))
@@ -110,7 +119,7 @@ namespace ThrowawayDb.Postgres
             try
             {
                 var builder = new NpgsqlConnectionStringBuilder(this.ConnectionString);
-                if (!builder.TryGetValue("Database", out var database))
+                if (!builder.TryGetValue("Database", out var database) || database == null)
                     return false;
 
                 var databaseName = database.ToString();
