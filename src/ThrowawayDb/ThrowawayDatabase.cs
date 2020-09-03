@@ -6,13 +6,9 @@ namespace ThrowawayDb
 {
     public class ThrowawayDatabase : IDisposable
     {
-        /// <summary>Returns the connection string of the database that was created</summary>
-        public string ConnectionString { get; internal set; }
-        /// <summary>Returns the name of the database that was created</summary>
-        public string Name { get; internal set; }
+        private const string DefaultDatabaseNamePrefix = "ThrowawayDb";
+        private readonly string originalConnectionString;
         private bool databaseCreated;
-        private string originalConnectionString;
-        private string defaultDatabaseNamePrefix = "ThrowawayDb";
 
         private ThrowawayDatabase(string originalConnectionString, string databaseNamePrefix)
         {
@@ -23,25 +19,35 @@ namespace ThrowawayDb
             Name = databaseName;
         }
 
+        /// <summary>
+        /// Returns the connection string of the database that was created
+        /// </summary>
+        public string ConnectionString { get; }
+
+        /// <summary>
+        /// Returns the name of the database that was created
+        /// </summary>
+        public string Name { get; }
+
         private void DropDatabaseIfCreated()
         {
-            if (databaseCreated)
+            if (!databaseCreated)
+                return;
+
+            using (var connection = new SqlConnection(this.originalConnectionString))
             {
-                using (var connection = new SqlConnection(this.originalConnectionString))
+                connection.Open();
+
+                var resetActiveSessions = $"ALTER DATABASE {Name} SET SINGLE_USER WITH ROLLBACK IMMEDIATE;";
+
+                using (var cmd = new SqlCommand(resetActiveSessions, connection))
                 {
-                    connection.Open();
+                    cmd.ExecuteNonQuery();
+                }
 
-                    var resetActiveSessions = $"ALTER DATABASE {Name} SET SINGLE_USER WITH ROLLBACK IMMEDIATE;";
-
-                    using (var cmd = new SqlCommand(resetActiveSessions, connection))
-                    {
-                        cmd.ExecuteNonQuery();
-                    }
-
-                    using (var cmd = new SqlCommand($"DROP DATABASE {Name}", connection))
-                    {
-                        var result = cmd.ExecuteNonQuery();
-                    }
+                using (var cmd = new SqlCommand($"DROP DATABASE {Name}", connection))
+                {
+                    cmd.ExecuteNonQuery();
                 }
             }
         }
@@ -81,7 +87,7 @@ namespace ThrowawayDb
                                         otherConnection.Open();
                                         using (var createCmd = new SqlCommand($"CREATE DATABASE {databaseName}", otherConnection))
                                         {
-                                            var result = createCmd.ExecuteNonQuery();
+                                            createCmd.ExecuteNonQuery();
                                             Debug.Print($"Successfully created database {databaseName}");
                                             this.databaseCreated = true;
                                         }
@@ -115,9 +121,9 @@ namespace ThrowawayDb
                 using (var connection = new SqlConnection(originalConnectionString))
                 {
                     connection.Open();
-                    using (var cmd = new SqlCommand("SELECT GETDATE()", connection))
+                    using (var cmd = new SqlCommand("SELECT 1", connection))
                     {
-                        var result = cmd.ExecuteScalar();
+                        var _ = cmd.ExecuteScalar();
                         return true;
                     }
                 }
@@ -132,10 +138,12 @@ namespace ThrowawayDb
             }
         }
 
-        private (string connectionString, string databaseName) DeriveThrowawayConnectionString(string originalConnectionString, string databaseNamePrefix)
+        private static (string connectionString, string databaseName) DeriveThrowawayConnectionString(string originalConnectionString, string databaseNamePrefix)
         {
             var builder = new SqlConnectionStringBuilder(originalConnectionString);
-            var databasePrefix = string.IsNullOrWhiteSpace(databaseNamePrefix) ? defaultDatabaseNamePrefix : databaseNamePrefix;
+            var databasePrefix = string.IsNullOrWhiteSpace(databaseNamePrefix)
+                ? DefaultDatabaseNamePrefix
+                : databaseNamePrefix;
 
             var databaseName = $"{databasePrefix}{Guid.NewGuid().ToString("n").Substring(0, 10)}";
 
@@ -149,7 +157,8 @@ namespace ThrowawayDb
         }
 
         /// <summary>
-        /// Uses the given instance as the Data Source of the connection string along with integration security assuming that the current user has direct access to his or her Sql server instance.
+        /// Uses the given instance as the Data Source of the connection string along with integration security
+        /// assuming that the current user has direct access to his or her Sql server instance.
         /// </summary>
         public static ThrowawayDatabase FromLocalInstance(string instance, string databaseNamePrefix = null)
         {
@@ -161,7 +170,6 @@ namespace ThrowawayDb
             }
 
             var database = new ThrowawayDatabase(connectionString, databaseNamePrefix);
-
             if (!database.CreateDatabaseIfDoesNotExist())
             {
                 throw new Exception("Could not create the throwaway database");
@@ -190,9 +198,9 @@ namespace ThrowawayDb
             return database;
         }
 
-
         /// <summary>
-        /// Creates a throwaway database using the connection string provided. No need to set the Initial Catalog as it will get replaced by the name of the database that will be created.
+        /// Creates a throwaway database using the connection string provided.
+        /// No need to set the Initial Catalog as it will get replaced by the name of the database that will be created.
         /// </summary>
         public static ThrowawayDatabase Create(string connectionString, string databaseNamePrefix = null)
         {
@@ -202,7 +210,6 @@ namespace ThrowawayDb
             }
 
             var database = new ThrowawayDatabase(connectionString ?? "", databaseNamePrefix);
-
             if (!database.CreateDatabaseIfDoesNotExist())
             {
                 throw new Exception("Could not create the throwaway database");

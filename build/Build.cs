@@ -16,7 +16,7 @@ using static Nuke.Common.Tooling.ProcessTasks;
 class Build : NukeBuild
 {
     static AbsolutePath Source => RootDirectory / "src";
-    static AbsolutePath ThrowawayDb => Source / "ThrowawayDb"; 
+    static AbsolutePath ThrowawayDb => Source / "ThrowawayDb";
     static AbsolutePath ThrowawayDbPostgres => Source / "ThrowawayDb.Postgres";
     static AbsolutePath ThrowawayDbTests => RootDirectory / "tests" / "ThrowawayDb";
     static AbsolutePath ThrowawayDbPostgresTests => RootDirectory / "tests" / "ThrowawayDb.Postgres";
@@ -27,14 +27,14 @@ class Build : NukeBuild
     [Parameter("Configuration to build - Default is 'Debug' (local) or 'Release' (server)")]
     readonly Configuration Configuration = IsLocalBuild ? Configuration.Debug : Configuration.Release;
 
-    Target Clean => task => 
-      task  
+    Target Clean => task =>
+      task
         .Executes(() =>
         {
             var directories = new List<string> {
                 ThrowawayDb / "bin",
-                ThrowawayDb / "obj", 
-                ThrowawayDbPostgres / "bin", 
+                ThrowawayDb / "obj",
+                ThrowawayDbPostgres / "bin",
                 ThrowawayDbPostgres / "obj",
                 ThrowawayDbTests / "bin",
                 ThrowawayDbTests / "obj",
@@ -43,7 +43,7 @@ class Build : NukeBuild
                 PublishDir
             };
 
-            foreach(var dir in directories) 
+            foreach(var dir in directories)
             {
                 DeleteDirectory(dir);
             }
@@ -63,7 +63,7 @@ class Build : NukeBuild
             StartProcess(DOTNET, "build", ThrowawayDbPostgresTests).AssertZeroExitCode();
         });
 
-    Target Test => task => 
+    Target Test => task =>
       task
         .DependsOn(Compile)
         .Executes(() =>
@@ -78,9 +78,9 @@ class Build : NukeBuild
         });
 
     Target PackThrowawayDb => task =>
-      task 
+      task
         .DependsOn(Compile)
-        .Executes(() => 
+        .Executes(() =>
         {
             var packCmd = $"pack -c Release -o {PublishDir}";
             StartProcess(DOTNET, packCmd, ThrowawayDb).AssertZeroExitCode();
@@ -88,8 +88,8 @@ class Build : NukeBuild
 
     Target PublishThrowawayDb => task =>
       task
-        .DependsOn(PackThrowawayDb) 
-        .Executes(() => 
+        .DependsOn(PackThrowawayDb)
+        .Executes(() =>
         {
             var nugetFile = Directory.GetFiles(PublishDir).FirstOrDefault() ?? "";
             if (!nugetFile.EndsWith(".nupkg"))
@@ -112,9 +112,9 @@ class Build : NukeBuild
         });
 
     Target PackThrowawayDbPostgres => task =>
-      task 
+      task
         .DependsOn(Compile)
-        .Executes(() => 
+        .Executes(() =>
         {
             var packCmd = $"pack -c Release -o {PublishDir}";
             StartProcess(DOTNET, packCmd, ThrowawayDbPostgres).AssertZeroExitCode();
@@ -122,8 +122,8 @@ class Build : NukeBuild
 
     Target PublishThrowawayDbPostgres => task =>
       task
-        .DependsOn(PackThrowawayDbPostgres) 
-        .Executes(() => 
+        .DependsOn(PackThrowawayDbPostgres)
+        .Executes(() =>
         {
             var nugetFile = Directory.GetFiles(PublishDir).FirstOrDefault() ?? "";
             if (!nugetFile.EndsWith(".nupkg"))
@@ -143,5 +143,5 @@ class Build : NukeBuild
 
             var nugetFileName = new FileInfo(nugetFile).Name;
             StartProcess(DOTNET, $"nuget push {nugetFileName} -s https://api.nuget.org/v3/index.json -k {nugetApiKey}", PublishDir).AssertZeroExitCode();
-        });        
+        });
 }
